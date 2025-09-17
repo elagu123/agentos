@@ -1,0 +1,469 @@
+name: 🚀 Deploy to Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to deploy'
+        required: true
+        default: 'latest'
+        type: string
+      force_deploy:
+        description: 'Force deployment (skip some checks)'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: agentos/api
+  FRONTEND_IMAGE: agentos/frontend
+  ADMIN_IMAGE: agentos/admin
+
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
+
+jobs:
+  # Pre-flight Checks
+  pre-flight:
+    name: 🔍 Pre-flight Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      should-deploy: ${{ steps.checks.outputs.should-deploy }}
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🏷️ Generate version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="$(date +%Y%m%d)-${{ github.run_number }}-${GITHUB_SHA::8}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Generated version: $VERSION"
+
+      - name: 🔍 Run pre-flight checks
+        id: checks
+        run: |
+          # Check if this is a deployment-ready commit
+          if [ "${{ github.event.inputs.force_deploy }}" = "true" ]; then
+            echo "Force deployment requested"
+            echo "should-deploy=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Check for deployment markers in commit message
+          if git log -1 --pretty=%B | grep -qE '\[deploy\]|\[release\]'; then
+            echo "Deployment marker found in commit message"
+            echo "should-deploy=true" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "Main branch push - proceeding with deployment"
+            echo "should-deploy=true" >> $GITHUB_OUTPUT
+          else
+            echo "No deployment markers found"
+            echo "should-deploy=false" >> $GITHUB_OUTPUT
+          fi
+
+  # Security and Quality Checks
+  security-scan:
+    name: 🔒 Security Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: pre-flight
+    if: needs.pre-flight.outputs.should-deploy == 'true'
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 📦 Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install bandit safety semgrep
+          pip install -r requirements.txt
+
+      - name: 🔍 Run Bandit security linter
+        run: |
+          bandit -r app/ -f json -o bandit-report.json || true
+          bandit -r app/ -ll
+
+      - name: 🔍 Check for known vulnerabilities
+        run: |
+          safety check --json --output safety-report.json || true
+          safety check
+
+      - name: 🔍 Run Semgrep SAST
+        run: |
+          semgrep --config=auto app/ --json --output semgrep-report.json || true
+          semgrep --config=auto app/
+
+      - name: 🔍 Run Trivy filesystem scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          severity: 'CRITICAL,HIGH'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: 📊 Upload security scan results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: security-reports
+          path: |
+            bandit-report.json
+            safety-report.json
+            semgrep-report.json
+            trivy-results.sarif
+
+  # Run Tests
+  test:
+    name: 🧪 Test Suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: pre-flight
+    if: needs.pre-flight.outputs.should-deploy == 'true'
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_USER: testuser
+          POSTGRES_DB: testdb
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 📦 Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: 🗄️ Run database migrations
+        env:
+          DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
+        run: |
+          alembic upgrade head
+
+      - name: 🧪 Run tests with coverage
+        env:
+          DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
+          REDIS_URL: redis://localhost:6379/0
+          JWT_SECRET: test-secret
+          ENCRYPTION_KEY: test-encryption-key
+        run: |
+          pytest tests/ \
+            --cov=app \
+            --cov-report=xml \
+            --cov-report=term \
+            --cov-report=html \
+            --junit-xml=test-results.xml \
+            --maxfail=5 \
+            -v
+
+      - name: 📊 Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+
+      - name: 📊 Upload test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: test-results
+          path: |
+            test-results.xml
+            htmlcov/
+            coverage.xml
+
+  # Build and Push Images
+  build:
+    name: 🏗️ Build Images
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [pre-flight, security-scan, test]
+    if: needs.pre-flight.outputs.should-deploy == 'true'
+    outputs:
+      version: ${{ needs.pre-flight.outputs.version }}
+      api-image: ${{ steps.meta.outputs.tags }}
+      api-digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐳 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 📝 Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ needs.pre-flight.outputs.version }}
+
+      - name: 🔑 Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🏗️ Build and push API image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.production
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64,linux/arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+            VCS_REF=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.revision'] }}
+            VERSION=${{ needs.pre-flight.outputs.version }}
+
+      - name: 🔍 Run Trivy container scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.pre-flight.outputs.version }}
+          format: 'sarif'
+          output: 'trivy-image-results.sarif'
+
+      - name: 📊 Upload container scan results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: container-scan-results
+          path: trivy-image-results.sarif
+
+  # Deploy to Production
+  deploy:
+    name: 🚀 Deploy to Production
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [pre-flight, build]
+    environment: production
+    if: needs.pre-flight.outputs.should-deploy == 'true'
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: 🔗 Update kubeconfig
+        run: |
+          aws eks update-kubeconfig --region us-east-1 --name agentos-production
+
+      - name: 🔍 Verify cluster connection
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+          kubectl get namespaces
+
+      - name: 🔐 Create/update secrets
+        run: |
+          # Update image pull secret
+          kubectl create secret docker-registry registry-secret \
+            --docker-server=ghcr.io \
+            --docker-username=${{ github.actor }} \
+            --docker-password=${{ secrets.GITHUB_TOKEN }} \
+            --namespace=production \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: 🚀 Deploy to Kubernetes
+        run: |
+          # Apply all Kubernetes manifests
+          kubectl apply -f k8s/production/namespace.yaml
+          kubectl apply -f k8s/production/configmap.yaml
+          kubectl apply -f k8s/production/secrets.yaml
+          kubectl apply -f k8s/production/deployment.yaml
+          kubectl apply -f k8s/production/ingress.yaml
+
+          # Update image tags
+          kubectl set image deployment/agentos-api \
+            api=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.pre-flight.outputs.version }} \
+            -n production
+
+          # Wait for rollout to complete
+          kubectl rollout status deployment/agentos-api -n production --timeout=600s
+
+      - name: 🔍 Verify deployment
+        run: |
+          # Check deployment status
+          kubectl get deployments -n production
+          kubectl get pods -n production
+          kubectl get services -n production
+          kubectl get ingress -n production
+
+          # Check pod logs for any errors
+          kubectl logs -l app=agentos,component=api -n production --tail=50
+
+      - name: 🩺 Run smoke tests
+        run: |
+          # Wait for service to be ready
+          kubectl wait --for=condition=available --timeout=300s deployment/agentos-api -n production
+
+          # Get service endpoint
+          API_ENDPOINT=$(kubectl get ingress agentos-ingress -n production -o jsonpath='{.spec.rules[0].host}')
+
+          # Run basic health check
+          curl -f https://${API_ENDPOINT}/health || exit 1
+
+          # Run more comprehensive smoke tests
+          python scripts/smoke_tests.py --endpoint https://${API_ENDPOINT}
+
+  # Post-deployment Tasks
+  post-deploy:
+    name: 📊 Post-deployment
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [deploy, build]
+    if: always() && needs.deploy.result == 'success'
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🧹 Purge CDN cache
+        run: |
+          curl -X POST "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/purge_cache" \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"purge_everything":true}'
+
+      - name: 📊 Create Sentry release
+        uses: getsentry/action-release@v1
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: agentos
+          SENTRY_PROJECT: api
+        with:
+          environment: production
+          version: ${{ needs.build.outputs.version }}
+
+      - name: 📈 Update monitoring dashboards
+        run: |
+          # Update Datadog deployment marker
+          curl -X POST "https://api.datadoghq.com/api/v1/events" \
+            -H "Content-Type: application/json" \
+            -H "DD-API-KEY: ${{ secrets.DATADOG_API_KEY }}" \
+            -d '{
+              "title": "AgentOS Production Deployment",
+              "text": "Version ${{ needs.build.outputs.version }} deployed to production",
+              "tags": ["environment:production", "service:agentos", "version:${{ needs.build.outputs.version }}"],
+              "alert_type": "info"
+            }'
+
+      - name: 💬 Notify team
+        uses: 8398a7/action-slack@v3
+        if: always()
+        with:
+          status: ${{ job.status }}
+          text: |
+            🚀 **Production Deployment ${{ job.status == 'success' && 'Successful' || 'Failed' }}**
+
+            **Version:** `${{ needs.build.outputs.version }}`
+            **Deployed by:** ${{ github.actor }}
+            **Commit:** `${{ github.sha }}`
+            **Branch:** `${{ github.ref_name }}`
+
+            **Services Updated:**
+            • API: `${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.build.outputs.version }}`
+
+            **Links:**
+            • [🌐 Production App](https://app.agentos.io)
+            • [🔌 API Health](https://api.agentos.io/health)
+            • [📊 Monitoring](https://app.datadoghq.com)
+            • [🐛 Sentry](https://sentry.io/organizations/agentos)
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+
+      - name: 📝 Update deployment record
+        run: |
+          curl -X POST https://api.agentos.io/admin/deployments \
+            -H "Authorization: Bearer ${{ secrets.ADMIN_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "version": "${{ needs.build.outputs.version }}",
+              "environment": "production",
+              "status": "deployed",
+              "deployed_by": "${{ github.actor }}",
+              "commit_sha": "${{ github.sha }}",
+              "deployment_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }' || echo "Failed to update deployment record (non-critical)"
+
+  # Cleanup old images
+  cleanup:
+    name: 🧹 Cleanup
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [post-deploy]
+    if: always()
+
+    steps:
+      - name: 🧹 Delete old container images
+        uses: actions/delete-package-versions@v4
+        with:
+          package-name: ${{ env.IMAGE_NAME }}
+          package-type: container
+          min-versions-to-keep: 10
+          delete-only-untagged-versions: true

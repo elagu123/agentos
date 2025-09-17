@@ -1,0 +1,380 @@
+name: 🧪 Test & Quality Checks
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+env:
+  PYTHON_VERSION: '3.11'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Code Quality Checks
+  quality:
+    name: 🔍 Code Quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: 📦 Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install black isort flake8 mypy pylint
+          pip install -r requirements.txt
+
+      - name: 🎨 Check code formatting (Black)
+        run: |
+          black --check --diff app/ tests/
+
+      - name: 📦 Check import sorting (isort)
+        run: |
+          isort --check-only --diff app/ tests/
+
+      - name: 🔍 Lint with flake8
+        run: |
+          flake8 app/ tests/ --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 app/ tests/ --count --exit-zero --max-complexity=10 --max-line-length=88 --statistics
+
+      - name: 🔍 Type checking with mypy
+        run: |
+          mypy app/ --ignore-missing-imports
+
+      - name: 🔍 Comprehensive linting (Pylint)
+        run: |
+          pylint app/ --disable=C0114,C0115,C0116 --exit-zero
+
+  # Security Checks
+  security:
+    name: 🔒 Security Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: 📦 Install security tools
+        run: |
+          pip install --upgrade pip
+          pip install bandit safety semgrep
+          pip install -r requirements.txt
+
+      - name: 🔍 Run Bandit security linter
+        run: |
+          bandit -r app/ -f json -o bandit-report.json
+          bandit -r app/ -ll
+
+      - name: 🔍 Check for known vulnerabilities
+        run: |
+          safety check --json --output safety-report.json
+          safety check
+
+      - name: 🔍 Run Semgrep SAST
+        run: |
+          semgrep --config=auto app/ --json --output semgrep-report.json
+          semgrep --config=auto app/
+
+      - name: 📊 Upload security reports
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: security-reports-${{ github.run_id }}
+          path: |
+            bandit-report.json
+            safety-report.json
+            semgrep-report.json
+
+  # Unit and Integration Tests
+  test:
+    name: 🧪 Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11']
+        test-group: ['unit', 'integration', 'api']
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_USER: testuser
+          POSTGRES_DB: testdb
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: 📦 Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: 🗄️ Set up test database
+        env:
+          DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
+        run: |
+          # Run migrations
+          alembic upgrade head
+
+          # Seed test data if needed
+          python scripts/seed_test_data.py
+
+      - name: 🧪 Run ${{ matrix.test-group }} tests
+        env:
+          DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
+          REDIS_URL: redis://localhost:6379/0
+          JWT_SECRET: test-secret-key
+          ENCRYPTION_KEY: test-encryption-key
+          ENVIRONMENT: testing
+        run: |
+          case "${{ matrix.test-group }}" in
+            "unit")
+              pytest tests/unit/ -v --cov=app --cov-report=xml --cov-report=term --junit-xml=test-results-unit.xml
+              ;;
+            "integration")
+              pytest tests/integration/ -v --cov=app --cov-append --cov-report=xml --cov-report=term --junit-xml=test-results-integration.xml
+              ;;
+            "api")
+              pytest tests/api/ -v --cov=app --cov-append --cov-report=xml --cov-report=term --junit-xml=test-results-api.xml
+              ;;
+          esac
+
+      - name: 📊 Upload test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: test-results-${{ matrix.test-group }}-${{ matrix.python-version }}
+          path: |
+            test-results-*.xml
+            coverage.xml
+
+      - name: 📊 Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        if: matrix.test-group == 'api'
+        with:
+          file: ./coverage.xml
+          flags: ${{ matrix.test-group }}
+          name: codecov-${{ matrix.test-group }}
+
+  # Performance Tests
+  performance:
+    name: ⚡ Performance Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: github.event_name == 'pull_request' || github.event_name == 'schedule'
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_USER: testuser
+          POSTGRES_DB: testdb
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: 📦 Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install locust pytest-benchmark
+
+      - name: 🗄️ Set up database
+        env:
+          DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
+        run: |
+          alembic upgrade head
+
+      - name: 🚀 Start application
+        env:
+          DATABASE_URL: postgresql://testuser:testpass@localhost:5432/testdb
+          REDIS_URL: redis://localhost:6379/0
+          JWT_SECRET: test-secret-key
+          ENCRYPTION_KEY: test-encryption-key
+        run: |
+          uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          sleep 10
+
+      - name: ⚡ Run performance tests
+        run: |
+          # Basic load test
+          locust -f tests/performance/locustfile.py --host=http://localhost:8000 \
+            --users 10 --spawn-rate 2 --run-time 60s --headless --html performance-report.html
+
+      - name: 📊 Upload performance results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: performance-results
+          path: performance-report.html
+
+  # Dependency Check
+  dependencies:
+    name: 📦 Dependency Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: 📦 Install pip-audit
+        run: |
+          pip install --upgrade pip
+          pip install pip-audit
+
+      - name: 🔍 Audit dependencies
+        run: |
+          pip-audit --desc --format=json --output=audit-report.json
+          pip-audit --desc
+
+      - name: 📊 Upload audit results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: dependency-audit
+          path: audit-report.json
+
+  # Documentation Tests
+  docs:
+    name: 📚 Documentation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: 📦 Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install sphinx sphinx-rtd-theme
+
+      - name: 📚 Check API documentation
+        run: |
+          # Validate OpenAPI spec
+          python -c "
+          from app.main import app
+          import json
+          openapi = app.openapi()
+          print(json.dumps(openapi, indent=2))
+          " > openapi.json
+
+      - name: 📊 Upload documentation
+        uses: actions/upload-artifact@v3
+        with:
+          name: api-documentation
+          path: openapi.json
+
+  # Summary Job
+  test-summary:
+    name: 📊 Test Summary
+    runs-on: ubuntu-latest
+    needs: [quality, security, test, dependencies]
+    if: always()
+
+    steps:
+      - name: 📊 Generate summary
+        run: |
+          echo "## 🧪 Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Results:" >> $GITHUB_STEP_SUMMARY
+          echo "- **Code Quality**: ${{ needs.quality.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Security**: ${{ needs.security.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tests**: ${{ needs.test.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Dependencies**: ${{ needs.dependencies.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ needs.quality.result }}" == "success" && "${{ needs.security.result }}" == "success" && "${{ needs.test.result }}" == "success" && "${{ needs.dependencies.result }}" == "success" ]]; then
+            echo "✅ **All checks passed!** Ready for deployment." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Some checks failed.** Please review the results." >> $GITHUB_STEP_SUMMARY
+          fi
