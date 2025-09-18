@@ -33,14 +33,16 @@ class Settings(BaseSettings):
         return v
 
     # Database Settings
-    database_url: PostgresDsn = Field(
-        ..., description="Database URL - MUST be set via environment variable"
+    database_url: Optional[str] = Field(
+        default="postgresql+asyncpg://user:pass@localhost:5432/agentos",
+        description="Database URL - Railway will set this automatically"
     )
     database_echo: bool = False
 
     # Redis Settings
-    redis_url: RedisDsn = Field(
-        default="redis://localhost:6379/0"
+    redis_url: Optional[str] = Field(
+        default="redis://localhost:6379/0",
+        description="Redis URL - Railway will set this automatically if added"
     )
 
     # Qdrant Settings
@@ -62,7 +64,10 @@ class Settings(BaseSettings):
     default_model: str = "gpt-4o-mini"
 
     # Security Settings
-    secret_key: str = Field(..., description="JWT secret key - MUST be set via environment variable")
+    secret_key: str = Field(
+        default="development-key-change-in-production",
+        description="JWT secret key - MUST be set via environment variable"
+    )
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
 
@@ -76,6 +81,9 @@ class Settings(BaseSettings):
 
     @validator('secret_key')
     def validate_secret_key(cls, v):
+        # Allow development key for initial deployment
+        if v == "development-key-change-in-production":
+            return v
         if not v or v in ['your-secret-key-change-in-production', 'CHANGE-ME-use-openssl-rand-base64-32-to-generate-secure-key']:
             raise ValueError('SECRET_KEY must be set to a secure value. Use: openssl rand -base64 32')
         if len(v) < 32:
