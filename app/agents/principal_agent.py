@@ -33,7 +33,7 @@ class PrincipalAgent(BaseAgent):
                 AgentCapability.WORKFLOW_AUTOMATION
             ],
             model_preferences={
-                TaskType.REALTIME_CHAT.value: "gpt-4o-mini",
+                TaskType.REAL_TIME_CHAT.value: "gpt-4o-mini",
                 TaskType.COMPLEX_REASONING.value: "gpt-4o",
                 TaskType.BULK_PROCESSING.value: "gpt-3.5-turbo"
             },
@@ -96,7 +96,7 @@ When you don't have specific information, be honest about it and suggest ways to
         # Generate response using LLM router
         response = await self.generate_llm_response(
             prompt=enhanced_prompt,
-            task_type=TaskType.REALTIME_CHAT,
+            task_type=TaskType.REAL_TIME_CHAT,
             **kwargs
         )
 

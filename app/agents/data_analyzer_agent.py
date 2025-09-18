@@ -130,7 +130,7 @@ class DataAnalyzerAgent(BaseAgent):
             model_preferences={
                 TaskType.DATA_ANALYSIS.value: "gpt-4o",
                 TaskType.BULK_PROCESSING.value: "claude-3-5-sonnet-20241022",
-                TaskType.REALTIME_CHAT.value: "gpt-4o-mini"
+                TaskType.REAL_TIME_CHAT.value: "gpt-4o-mini"
             },
             max_tokens=4000,
             temperature=0.1,  # Very low for factual accuracy

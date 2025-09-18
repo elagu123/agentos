@@ -116,7 +116,7 @@ class EmailResponderAgent(BaseAgent):
                 AgentCapability.WORKFLOW_AUTOMATION
             ],
             model_preferences={
-                TaskType.REALTIME_CHAT.value: "claude-3-5-sonnet-20241022",
+                TaskType.REAL_TIME_CHAT.value: "claude-3-5-sonnet-20241022",
                 TaskType.BULK_PROCESSING.value: "gpt-4o",
                 TaskType.DATA_ANALYSIS.value: "gpt-4o-mini"
             },
@@ -531,7 +531,7 @@ class EmailResponderAgent(BaseAgent):
         """
 
         draft_response = await self.generate_llm_response(
-            response_prompt, TaskType.REALTIME_CHAT
+            response_prompt, TaskType.REAL_TIME_CHAT
         )
 
         result = f"""

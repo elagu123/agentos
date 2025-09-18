@@ -37,7 +37,7 @@ class CopywriterAgent(BaseAgent):
             ],
             model_preferences={
                 TaskType.CREATIVE_WRITING.value: "gpt-4o",
-                TaskType.REALTIME_CHAT.value: "claude-3-5-sonnet-20241022"
+                TaskType.REAL_TIME_CHAT.value: "claude-3-5-sonnet-20241022"
             },
             max_tokens=3000,
             temperature=0.8,  # Higher creativity for copywriting
@@ -266,7 +266,7 @@ class CopywriterAgent(BaseAgent):
         if content_type in creative_types:
             return TaskType.CREATIVE_WRITING
         else:
-            return TaskType.REALTIME_CHAT
+            return TaskType.REAL_TIME_CHAT
 
     async def _apply_copywriting_processing(
         self,

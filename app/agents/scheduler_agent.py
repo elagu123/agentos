@@ -99,7 +99,7 @@ class SchedulerAgent(BaseAgent):
                 AgentCapability.EMAIL_PROCESSING
             ],
             model_preferences={
-                TaskType.REALTIME_CHAT.value: "gpt-4o-mini",
+                TaskType.REAL_TIME_CHAT.value: "gpt-4o-mini",
                 TaskType.BULK_PROCESSING.value: "claude-3-5-sonnet-20241022"
             },
             max_tokens=2000,
@@ -622,7 +622,7 @@ class SchedulerAgent(BaseAgent):
         """
 
         response = await self.generate_llm_response(
-            response_prompt, TaskType.REALTIME_CHAT
+            response_prompt, TaskType.REAL_TIME_CHAT
         )
 
         return SchedulingResult(

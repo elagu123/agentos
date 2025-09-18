@@ -159,7 +159,7 @@ class BaseAgent(ABC):
                 metadata={
                     "execution_id": execution_id,
                     "capabilities_used": list(self.capabilities),
-                    "model_used": self._get_preferred_model(TaskType.REALTIME_CHAT),
+                    "model_used": self._get_preferred_model(TaskType.REAL_TIME_CHAT),
                     **kwargs
                 },
                 execution_time=execution_time,
@@ -366,7 +366,7 @@ class BaseAgent(ABC):
     async def generate_llm_response(
         self,
         prompt: str,
-        task_type: TaskType = TaskType.REALTIME_CHAT,
+        task_type: TaskType = TaskType.REAL_TIME_CHAT,
         **kwargs
     ) -> str:
         """Generate response using LLM router"""
