@@ -34,6 +34,7 @@ from app.utils.security import request_validator, csp
 from app.middleware.security import SecurityMiddleware
 from app.core.cache import cache_manager
 from app.core.performance_monitor import performance_monitor
+from app.core.websocket_manager import connection_pool
 
 # Configure structured logging
 structlog.configure(
