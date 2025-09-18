@@ -102,7 +102,7 @@ class TestDocumentProcessor:
             mock_temp.return_value.__enter__.return_value.name = "test_file.txt"
 
             with patch('langchain.document_loaders.TextLoader') as mock_loader:
-                from langchain.schema import Document
+                from langchain_core.documents import Document
                 mock_loader.return_value.load.return_value = [
                     Document(page_content="Test content", metadata={"source": "test.txt"})
                 ]
@@ -121,7 +121,7 @@ class TestDocumentProcessor:
             mock_temp.return_value.__enter__.return_value.name = "test_file.pdf"
 
             with patch('langchain.document_loaders.PyPDFLoader') as mock_loader:
-                from langchain.schema import Document
+                from langchain_core.documents import Document
                 mock_loader.return_value.load.return_value = [
                     Document(page_content="PDF content", metadata={"source": "test.pdf"})
                 ]

@@ -4,10 +4,10 @@ import asyncio
 import time
 from enum import Enum
 
-from langchain.llms import OpenAI
-from langchain.chat_models import ChatOpenAI, ChatAnthropic
-from langchain.llms import Together
-from langchain.schema import BaseMessage, HumanMessage, SystemMessage, AIMessage
+from langchain_community.llms import OpenAI, Together
+from langchain_openai import ChatOpenAI
+from langchain_anthropic import ChatAnthropic
+from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage, AIMessage
 
 from app.config import settings
 from app.utils.exceptions import LLMException

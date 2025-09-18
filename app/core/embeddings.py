@@ -4,7 +4,7 @@ import time
 from abc import ABC, abstractmethod
 
 import numpy as np
-from langchain.embeddings import OpenAIEmbeddings
+from langchain_openai import OpenAIEmbeddings
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
     VectorParams,

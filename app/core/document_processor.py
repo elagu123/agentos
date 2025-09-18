@@ -7,14 +7,14 @@ import asyncio
 import tempfile
 
 from fastapi import UploadFile
-from langchain.document_loaders import (
+from langchain_community.document_loaders import (
     PyPDFLoader,
     CSVLoader,
     TextLoader,
     UnstructuredWordDocumentLoader
 )
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.schema import Document
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_core.documents import Document
 
 from app.config import settings
 from app.core.embeddings import embedding_manager

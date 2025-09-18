@@ -6,8 +6,8 @@ from datetime import datetime, timedelta
 
 import redis.asyncio as redis
 from langchain.memory import ConversationSummaryBufferMemory
-from langchain.schema import BaseMessage, HumanMessage, AIMessage
-from langchain.schema.document import Document
+from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
+from langchain_core.documents import Document
 
 from app.config import settings
 from app.core.embeddings import embedding_manager
