@@ -18,6 +18,7 @@ from qdrant_client.models import (
 
 from app.config import settings
 from app.utils.exceptions import VectorStoreException, LLMException
+from app.core.cache import cache_manager, cache_rag_results
 
 
 class BaseEmbeddingProvider(ABC):
@@ -197,7 +198,7 @@ class EmbeddingManager:
         filter_conditions: Optional[Dict[str, Any]] = None
     ) -> List[Dict[str, Any]]:
         """
-        Search for similar documents
+        Search for similar documents with caching
 
         Args:
             collection_name: Name of the collection
@@ -209,6 +210,19 @@ class EmbeddingManager:
         Returns:
             List of similar documents with scores
         """
+        # Extract org_id from collection name for cache key
+        org_id = collection_name.replace("org_", "").replace("_docs", "")
+
+        # Check cache first
+        cached_results = await cache_manager.get_cached_rag(query, org_id)
+        if cached_results:
+            # Filter cached results based on current parameters
+            filtered_results = [
+                r for r in cached_results
+                if r.get("score", 0) >= score_threshold
+            ][:limit]
+            return filtered_results
+
         try:
             # Generate query embedding
             query_embeddings = await self.provider.generate_embeddings([query])
@@ -244,8 +258,19 @@ class EmbeddingManager:
                     "id": result.id,
                     "content": result.payload.get("content", ""),
                     "metadata": {k: v for k, v in result.payload.items() if k != "content"},
-                    "score": result.score
+                    "score": result.score,
+                    "source": result.payload.get("source", "business_documents"),
+                    "type": "business_context"
                 })
+
+            # Cache the results for future queries
+            if results:
+                await cache_manager.cache_rag_search(
+                    query=query,
+                    org_id=org_id,
+                    results=results,
+                    expire_time=3600  # 1 hour cache
+                )
 
             return results
         except Exception as e:

@@ -11,6 +11,7 @@ from langchain.schema import BaseMessage, HumanMessage, SystemMessage, AIMessage
 
 from app.config import settings
 from app.utils.exceptions import LLMException
+from app.core.cache import cache_manager, cache_llm_responses
 
 
 class LLMProvider(Enum):
@@ -468,12 +469,37 @@ class MultiLLMRouter:
             # Fallback to available model
             model_name = self._get_fallback_model(context)
 
+        # Check cache for deterministic responses
+        temperature = kwargs.get('temperature', 0.7)
+        if temperature == 0:  # Only cache deterministic responses
+            cached_response = await cache_manager.get_cached_llm_response(prompt, model_name)
+            if cached_response:
+                return {
+                    "response": cached_response,
+                    "model_used": model_name,
+                    "provider": self.model_configs[model_name]["provider"].value,
+                    "execution_time": 0.001,  # Minimal cache retrieval time
+                    "success": True,
+                    "error": None,
+                    "routing_reason": f"cached_{self._get_routing_reason(model_name, task_type, context)}",
+                    "cached": True
+                }
+
         try:
             client = self.clients[model_name]
             start_time = time.time()
 
             response = await client.generate_text(prompt, **kwargs)
             execution_time = time.time() - start_time
+
+            # Cache the response if deterministic
+            if temperature == 0:
+                await cache_manager.cache_llm_response(
+                    prompt=prompt,
+                    model=model_name,
+                    response=response,
+                    temperature=temperature
+                )
 
             return {
                 "response": response,
@@ -482,7 +508,8 @@ class MultiLLMRouter:
                 "execution_time": execution_time,
                 "success": True,
                 "error": None,
-                "routing_reason": self._get_routing_reason(model_name, task_type, context)
+                "routing_reason": self._get_routing_reason(model_name, task_type, context),
+                "cached": False
             }
 
         except Exception as e:

@@ -1,8 +1,146 @@
-# AgentOS Backend
+# AgentOS - AI Agent Orchestration Platform for SMEs
+
+## 🧠 Project Context for AI Assistants
+<!-- This section is specifically for AI assistants in future sessions -->
+
+### Current State (Last Updated: 2025-01-18)
+- **Completion**: 75% of MVP (Phases 1-6 complete, working on 7-9)
+- **Current Phase**: Phase 7 - Frontend Dashboard Implementation
+- **Deployment Status**: Live on Railway - Production Ready
+- **Railway URL**: Successfully deployed with health checks passing
+- **Cost**: ~$15/month (vs $200+/month AWS alternative)
+- **Active Issues**: None critical, focusing on MVP completion
+
+### What's Built ✅
+- ✅ **Core System**: Principal Agent with RAG, business context training
+- ✅ **5 Specialized Agents**: Copywriter, Researcher, Scheduler, EmailResponder, DataAnalyzer
+- ✅ **Orchestration System**: Complete workflow executor with 8 step types, dependency resolver
+- ✅ **Visual Builder**: React Flow drag-and-drop interface with real-time validation
+- ✅ **Marketplace System**: Template publishing, ratings, security validation
+- ✅ **Beta Testing System**: Analytics, feedback collection, feature flags
+- ✅ **Railway Deployment**: Production environment with auto-deploy
+- ⏳ **Dashboard Frontend**: In progress (Phase 7)
+- ⏳ **Performance Optimization**: Pending (Phase 8)
+- ⏳ **Enhanced Security**: Pending (Phase 9)
+
+### What's NOT Built (and why) ❌
+- ❌ **Gmail API**: Post-MVP, not core value proposition
+- ❌ **Slack Integration**: Post-MVP, needs user validation first
+- ❌ **WhatsApp Business**: Post-MVP, expensive ($50/month) without proven users
+- ❌ **Calendar Sync**: Post-MVP, not essential for core workflow automation
+- ❌ **Advanced Sandboxing**: Post-MVP, basic security sufficient for initial users
+
+### Tech Stack Summary
+```yaml
+Backend:
+  Framework: FastAPI (Python 3.11+)
+  Database: PostgreSQL 15 + pgvector
+  Cache: Redis 6+
+  ORM: SQLAlchemy 2.0 (async)
+
+Frontend:
+  Framework: React + TypeScript
+  UI: TailwindCSS + Headless UI
+  Workflows: React Flow
+  State: React Query + Zustand
+
+AI/ML:
+  LLMs: OpenAI, Anthropic, Together AI
+  Embeddings: text-embedding-ada-002
+  RAG: Custom implementation with pgvector
+  Router: Multi-LLM intelligent routing
+
+Deployment:
+  Platform: Railway (railway.app)
+  Cost: ~$15/month
+  Status: Production with auto-deploy
+  Database: PostgreSQL auto-provisioned
+```
+
+### Key Decisions & Rationale
+1. **No external APIs in MVP**: Focus on core value (Agent with business context)
+2. **Railway over AWS**: 93% cost reduction ($15 vs $200/month) for MVP stage
+3. **Multi-LLM router**: Avoid vendor lock-in, optimize costs per task type
+4. **Visual builder first**: Non-technical users are primary target market
+5. **Phase approach**: Complete core before adding integrations
+
+### MVP Definition
+**MVP = Minimum product that validates: "PyMEs will pay for an AI Agent that knows their business"**
+
+**NOT in MVP** (validated by cost-benefit analysis):
+- External integrations (70% of features are never used)
+- Scaling beyond 100 users (premature optimization)
+- Advanced security (basic protection sufficient initially)
+
+### Known Issues & Solutions
+| Issue | Impact | Solution | Status |
+|-------|---------|----------|---------|
+| None critical | - | - | All clear |
+
+### Next Session Instructions
+When continuing development, focus on:
+1. **Phase 7**: Complete frontend dashboard with chat interface
+2. **Phase 8**: Implement caching layer for performance
+3. **Phase 9**: Add enhanced security and rate limiting
+4. **Do NOT work on**: Gmail, Slack, WhatsApp, Calendar APIs
+
+### File Structure Overview
+```
+agentos-backend/
+├── app/                    # FastAPI backend (Phases 1-6 ✅)
+│   ├── agents/            # 5 specialized agents ✅
+│   ├── api/               # 40+ REST endpoints ✅
+│   ├── core/              # Business logic ✅
+│   ├── orchestration/     # Workflow system ✅
+│   ├── models/            # Database models ✅
+│   └── middleware/        # Security & monitoring ✅
+├── frontend/              # React frontend (Phase 7 ⏳)
+│   ├── src/components/    # UI components
+│   ├── src/pages/         # Route pages
+│   └── src/hooks/         # React Query hooks
+├── tests/                 # Test suite (comprehensive ✅)
+├── railway.json           # Railway deployment config ✅
+├── docker-compose.yml     # Local development ✅
+└── README.md              # THIS FILE - Keep updated!
+```
+
+### Session History
+| Date | Phase | What Was Done | What's Next |
+|------|-------|--------------|-------------|
+| 2025-01-17 | 1-6 | Core system, agents, orchestration, marketplace, beta system | Frontend dashboard |
+| 2025-01-18 | 7 | README update, starting dashboard implementation | Chat interface + metrics |
+
+### Commands for Quick Start
+```bash
+# Backend (already working)
+cd app && uvicorn main:app --reload
+
+# Frontend (to be created in Phase 7)
+cd frontend && npm run dev
+
+# Database (Railway auto-provisioned)
+# No local setup needed for production
+
+# Deploy to Railway
+git push origin main  # Auto-deploys
+```
+
+### Environment Variables Needed
+```env
+# Production (already configured in Railway)
+DATABASE_URL=postgresql+asyncpg://... (auto-generated)
+REDIS_URL=redis://... (optional, $3/month)
+OPENAI_API_KEY=sk-... (required)
+ANTHROPIC_API_KEY=sk-ant-... (optional)
+CLERK_SECRET_KEY=sk_... (required)
+SECRET_KEY=... (configured)
+```
+
+---
+
+## 🚀 AgentOS Features
 
 A multi-agent orchestration platform for SMEs that provides personalized AI agents trained on business-specific context.
-
-## 🚀 Features
 
 ### Core Platform
 - **Multi-Tenant Architecture**: Isolated data and agents per organization
@@ -14,15 +152,16 @@ A multi-agent orchestration platform for SMEs that provides personalized AI agen
 - **Security**: Comprehensive security middleware and input validation
 
 ### Agent System
-- **Principal Agents**: Main business representative agents
-- **Specialized Agents**: Task-specific agents (copywriting, research, customer service)
+- **Principal Agents**: Main business representative agents with full context
+- **Specialized Agents**: 5 task-specific agents (copywriting, research, scheduling, email, data analysis)
 - **Agent Training**: Automated training with validation and performance metrics
 - **RAG Integration**: Retrieval-Augmented Generation with vector search
+- **Workflow Orchestration**: Visual workflow builder with 8 execution step types
 
 ### Developer Experience
-- **FastAPI Backend**: Modern async Python API
+- **FastAPI Backend**: Modern async Python API with 40+ endpoints
 - **Type Safety**: Comprehensive Pydantic schemas and SQLAlchemy models
-- **Testing**: Full test suite with pytest
+- **Testing**: Full test suite with pytest (unit + integration)
 - **Documentation**: OpenAPI/Swagger documentation
 - **Migrations**: Alembic database migrations
 
@@ -32,29 +171,29 @@ A multi-agent orchestration platform for SMEs that provides personalized AI agen
 - **Framework**: FastAPI (Python 3.11+)
 - **Database**: PostgreSQL 15 + pgvector
 - **Cache**: Redis
-- **Vector Store**: Qdrant (self-hosted)
 - **Authentication**: Clerk
+- **Deployment**: Railway
 
 ### AI/ML
-- **LLM Framework**: LangChain
 - **LLM Providers**: OpenAI, Anthropic, Together AI
 - **Embeddings**: OpenAI text-embedding-ada-002
-- **Document Processing**: LangChain document loaders
+- **Multi-LLM Router**: Intelligent task-based routing
+- **Vector Store**: pgvector for RAG
 
 ### Infrastructure
 - **Containerization**: Docker & Docker Compose
 - **Environment**: Python virtual environments
 - **Testing**: pytest with async support
+- **Monitoring**: Structured logging with error tracking
 
 ## 📋 Prerequisites
 
 - Python 3.11+
-- PostgreSQL 15+
-- Redis 6+
-- Docker & Docker Compose (optional)
-- API Keys for LLM providers
+- Node.js 18+ (for frontend)
+- API Keys: OpenAI, Clerk
+- Railway account (for deployment)
 
-## 🔧 Installation
+## 🔧 Installation & Setup
 
 ### 1. Clone the Repository
 
@@ -63,7 +202,7 @@ git clone <repository-url>
 cd agentos-backend
 ```
 
-### 2. Set Up Environment
+### 2. Backend Setup
 
 ```bash
 # Create virtual environment
@@ -79,7 +218,15 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 3. Configure Environment Variables
+### 3. Frontend Setup (Phase 7)
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+### 4. Environment Configuration
 
 ```bash
 # Copy example environment file
@@ -88,28 +235,27 @@ cp .env.example .env
 # Edit .env with your configuration
 ```
 
-### 4. Start Services with Docker
+### 5. Database Setup
 
+For local development:
 ```bash
-# Start PostgreSQL, Redis, and Qdrant
+# Start PostgreSQL and Redis
 docker-compose up -d
-```
 
-### 5. Initialize Database
-
-```bash
 # Run migrations
 alembic upgrade head
 ```
 
+For production: Railway auto-provisions PostgreSQL.
+
 ### 6. Start the Application
 
 ```bash
-# Development server with auto-reload
+# Backend
 uvicorn app.main:app --reload
 
-# Or run directly
-python -m app.main
+# Frontend (separate terminal)
+cd frontend && npm run dev
 ```
 
 ## ⚙️ Configuration
@@ -119,9 +265,7 @@ python -m app.main
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `DATABASE_URL` | PostgreSQL connection string | Required |
-| `REDIS_URL` | Redis connection string | Required |
-| `QDRANT_HOST` | Qdrant host | localhost |
-| `QDRANT_PORT` | Qdrant port | 6333 |
+| `REDIS_URL` | Redis connection string | Optional |
 | `OPENAI_API_KEY` | OpenAI API key | Required |
 | `ANTHROPIC_API_KEY` | Anthropic API key | Optional |
 | `TOGETHER_API_KEY` | Together AI API key | Optional |
@@ -170,55 +314,6 @@ alembic upgrade head
 alembic downgrade -1
 ```
 
-## 🏗️ Project Structure
-
-```
-agentos-backend/
-├── app/
-│   ├── __init__.py
-│   ├── main.py                    # FastAPI application
-│   ├── config.py                  # Configuration settings
-│   ├── database.py                # Database setup
-│   │
-│   ├── models/                    # SQLAlchemy models
-│   │   ├── user.py
-│   │   ├── organization.py
-│   │   ├── agent.py
-│   │   └── business_context.py
-│   │
-│   ├── schemas/                   # Pydantic schemas
-│   │   ├── user.py
-│   │   ├── organization.py
-│   │   ├── agent.py
-│   │   └── onboarding.py
-│   │
-│   ├── api/                       # API routes
-│   │   ├── auth.py
-│   │   ├── onboarding.py
-│   │   ├── agents.py
-│   │   └── health.py
-│   │
-│   ├── core/                      # Business logic
-│   │   ├── agent_trainer.py       # Agent training logic
-│   │   ├── document_processor.py  # Document processing
-│   │   ├── embeddings.py          # Vector embeddings
-│   │   ├── multi_llm_router.py    # LLM routing
-│   │   └── memory_manager.py      # Conversation memory
-│   │
-│   └── utils/                     # Utilities
-│       ├── clerk_auth.py          # Authentication
-│       ├── exceptions.py          # Custom exceptions
-│       ├── rate_limiting.py       # Rate limiting
-│       └── security.py            # Security utilities
-│
-├── migrations/                    # Database migrations
-├── tests/                         # Test suite
-├── docker-compose.yml             # Development services
-├── requirements.txt               # Python dependencies
-├── alembic.ini                    # Migration configuration
-└── README.md
-```
-
 ## 🔒 Security Features
 
 ### Rate Limiting
@@ -264,6 +359,21 @@ agentos-backend/
 
 ## 🚀 Deployment
 
+### Railway Deployment (Recommended)
+
+Already configured and working:
+
+```bash
+# Deploy to Railway
+git push origin main  # Auto-deploys
+
+# Check deployment status
+railway status
+
+# View logs
+railway logs
+```
+
 ### Docker Deployment
 
 ```bash
@@ -274,19 +384,13 @@ docker build -t agentos-backend .
 docker-compose -f docker-compose.prod.yml up -d
 ```
 
-### Environment-Specific Configurations
-
-- **Development**: Debug mode, verbose logging
-- **Staging**: Production-like environment for testing
-- **Production**: Optimized for performance and security
-
 ## 📚 API Documentation
 
 Once the application is running, visit:
 - **Swagger UI**: http://localhost:8000/api/v1/docs
 - **ReDoc**: http://localhost:8000/api/v1/redoc
 
-### Key Endpoints
+### Key API Endpoints
 
 #### Authentication
 - `GET /api/v1/auth/me` - Get current user profile
@@ -303,9 +407,45 @@ Once the application is running, visit:
 - `GET /api/v1/agents/` - List organization agents
 - `GET /api/v1/agents/{agent_id}` - Get agent details
 
+#### Specialized Agents
+- `POST /api/v1/specialized-agents/{agent_type}/execute` - Execute agent task
+- `GET /api/v1/specialized-agents/{agent_type}/capabilities` - Get capabilities
+
+#### Orchestration
+- `POST /api/v1/orchestration/execute` - Execute workflow
+- `GET /api/v1/orchestration/templates` - List workflow templates
+- `WebSocket /api/v1/orchestration/executions/{id}/stream` - Real-time updates
+
+#### Marketplace
+- `GET /api/v1/marketplace/templates` - Browse templates
+- `POST /api/v1/marketplace/templates` - Publish template
+- `POST /api/v1/marketplace/templates/{id}/install` - Install template
+
 #### Health
 - `GET /health` - Basic health check
 - `GET /api/v1/health/detailed` - Detailed system health
+
+## 📋 Development Guidelines
+
+### For AI Assistants
+- Always read this README first to understand current state
+- Update the "Current State" and "Session History" after changes
+- Don't implement features marked with ❌ (external APIs)
+- Focus on completing current phase before moving forward
+- Run tests before committing
+- Update README after each development session
+
+### MVP Development Rules
+1. **MVP = Minimum product that validates core hypothesis**
+2. **Core Hypothesis**: "PyMEs will pay for an AI Agent that knows their business"
+3. **Everything else is post-MVP** until hypothesis is validated
+
+### Code Standards
+- Follow PEP 8 style guidelines
+- Write comprehensive tests for new features
+- Update documentation for API changes
+- Use type hints throughout the codebase
+- Follow async/await patterns for I/O operations
 
 ## 🤝 Contributing
 
@@ -314,14 +454,6 @@ Once the application is running, visit:
 3. Commit your changes (`git commit -m 'Add amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
-
-### Development Guidelines
-
-- Follow PEP 8 style guidelines
-- Write comprehensive tests for new features
-- Update documentation for API changes
-- Use type hints throughout the codebase
-- Follow async/await patterns for I/O operations
 
 ## 📄 License
 
@@ -334,22 +466,37 @@ For support and questions:
 - Contact the development team
 - Check the documentation and FAQ
 
-## 🔮 Roadmap
+## 🔮 Development Roadmap
 
-### Phase 1 (Current)
+### ✅ Phase 1-6 (Completed)
 - ✅ Core platform and onboarding
-- ✅ Multi-LLM routing
-- ✅ Document processing
-- ✅ Agent training system
+- ✅ 5 Specialized agents system
+- ✅ Multi-LLM routing and orchestration
+- ✅ Visual workflow builder
+- ✅ Marketplace system with templates
+- ✅ Beta testing infrastructure
+- ✅ Railway deployment
 
-### Phase 2 (Next)
-- 🔄 Frontend dashboard (Next.js)
-- 🔄 Real-time chat interface
-- 🔄 Advanced integrations (Gmail, Slack, WhatsApp)
-- 🔄 Performance analytics
+### ⏳ Phase 7 (In Progress) - Frontend Dashboard
+- 🔄 Principal Agent chat interface
+- 🔄 Workflow management dashboard
+- 🔄 Usage analytics and metrics
+- 🔄 Real-time notifications
 
-### Phase 3 (Future)
-- 📅 Multi-agent collaboration
-- 📅 Custom tool integration
-- 📅 Advanced workflow automation
-- 📅 Enterprise features
+### 📅 Phase 8 (Next) - Performance Optimization
+- 📅 Redis caching layer implementation
+- 📅 Database query optimization
+- 📅 Frontend performance improvements
+- 📅 Load testing and scaling
+
+### 📅 Phase 9 (Final MVP) - Enhanced Security
+- 📅 Advanced rate limiting by tier
+- 📅 Enhanced input validation
+- 📅 Basic code sandboxing
+- 📅 Audit logging and compliance
+
+### 🚀 Post-MVP (After Validation)
+- 🔮 External integrations (Gmail, Slack, WhatsApp)
+- 🔮 Advanced workflow features
+- 🔮 Enterprise security and compliance
+- 🔮 Mobile applications

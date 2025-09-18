@@ -1,0 +1,83 @@
+# Dockerfile optimizado para Railway + AgentOS
+# MULTI-STAGE BUILD para máxima optimización
+
+# Stage 1: Builder (dependencias y compilación)
+FROM python:3.11-slim as builder
+
+# Variables de build
+ARG DEBIAN_FRONTEND=noninteractive
+
+WORKDIR /app
+
+# Instalar dependencias de sistema necesarias para build
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    gcc \
+    g++ \
+    libpq-dev \
+    libffi-dev \
+    libssl-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Crear entorno virtual
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Actualizar pip y instalar wheel para builds más rápidos
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+
+# Copiar requirements y instalar dependencias Python
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Pre-instalar dependencias opcionales para rendimiento
+RUN pip install --no-cache-dir \
+    uvloop \
+    httptools \
+    python-multipart
+
+# Stage 2: Runtime (imagen final mínima)
+FROM python:3.11-slim as runtime
+
+# Variables de entorno para optimización
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPATH=/app \
+    PATH="/opt/venv/bin:$PATH"
+
+WORKDIR /app
+
+# Instalar solo dependencias runtime necesarias
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Crear usuario no-root para seguridad
+RUN groupadd -r agentos && useradd -r -g agentos agentos
+
+# Copiar entorno virtual desde builder
+COPY --from=builder /opt/venv /opt/venv
+
+# Copiar código de aplicación
+COPY --chown=agentos:agentos . .
+
+# Railway proporciona la variable PORT automáticamente
+ARG PORT
+ENV PORT=${PORT:-8000}
+
+# Exponer puerto dinámico
+EXPOSE $PORT
+
+# Healthcheck optimizado para Railway
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:${PORT}/health || exit 1
+
+# Cambiar a usuario no-root
+USER agentos
+
+# Comando optimizado para producción con uvloop
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 4 --loop uvloop --access-log --log-level info"]
