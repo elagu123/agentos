@@ -15,9 +15,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application
 COPY . .
 
-# Copy startup script and set permissions as root
+# Copy startup script (no chmod needed for Python files)
 COPY start.py .
-RUN chmod +x start.py
 
 # Create non-root user and change ownership
 RUN adduser --disabled-password --gecos '' appuser && chown -R appuser /app

@@ -13,9 +13,10 @@ def main():
     port = int(os.getenv("PORT", 8000))
     host = "0.0.0.0"
 
-    print(f"🚀 Starting AgentOS on {host}:{port}")
+    print(f"🚀 Starting AgentOS v2 on {host}:{port}")
     print(f"📊 Environment: {os.getenv('ENVIRONMENT', 'development')}")
     print(f"🔍 Debug mode: {os.getenv('DEBUG', 'false')}")
+    print(f"🐳 Railway deployment starting...")
 
     # Check critical environment variables (without showing values)
     required_vars = ["DATABASE_URL", "SECRET_KEY"]
