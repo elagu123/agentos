@@ -24,5 +24,9 @@ EXPOSE 8000
 
 # Health check - Railway handles this automatically
 
-# Start application - Use Python to handle PORT variable
-CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0"]
+# Copy startup script
+COPY start.py .
+RUN chmod +x start.py
+
+# Start application with debug startup script
+CMD ["python", "start.py"]
