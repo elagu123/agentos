@@ -15,18 +15,16 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application
 COPY . .
 
-# Create non-root user
+# Copy startup script and set permissions as root
+COPY start.py .
+RUN chmod +x start.py
+
+# Create non-root user and change ownership
 RUN adduser --disabled-password --gecos '' appuser && chown -R appuser /app
 USER appuser
 
 # Expose port
 EXPOSE 8000
-
-# Health check - Railway handles this automatically
-
-# Copy startup script
-COPY start.py .
-RUN chmod +x start.py
 
 # Start application with debug startup script
 CMD ["python", "start.py"]
