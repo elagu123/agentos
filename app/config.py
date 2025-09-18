@@ -91,22 +91,21 @@ class Settings(BaseSettings):
         return v
 
     # CORS Settings - Railway compatible
-    allowed_origins: list[str] = [
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "https://*.railway.app",
-        "https://*.up.railway.app",
-        "https://*.vercel.app",
-        "https://*.netlify.app"
-    ]
+    allowed_origins_str: str = Field(
+        default="http://localhost:3000,http://localhost:3001,https://*.railway.app,https://*.up.railway.app",
+        env="ALLOWED_ORIGINS"
+    )
     allowed_methods: list[str] = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
     allowed_headers: list[str] = ["*"]
 
-    @validator('allowed_origins', pre=True)
-    def parse_origins(cls, v):
-        if isinstance(v, str):
-            return [origin.strip() for origin in v.split(',')]
-        return v
+    @property
+    def allowed_origins(self) -> list[str]:
+        """Parse allowed origins from string to list"""
+        if isinstance(self.allowed_origins_str, str):
+            # Split by comma and clean whitespace
+            origins = [origin.strip() for origin in self.allowed_origins_str.split(',') if origin.strip()]
+            return origins if origins else ["http://localhost:3000", "https://*.railway.app"]
+        return ["http://localhost:3000", "https://*.railway.app"]
 
     # File Upload Settings
     max_file_size: int = 10 * 1024 * 1024  # 10MB
