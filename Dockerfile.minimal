@@ -1,0 +1,16 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install minimal requirements
+COPY requirements_minimal.txt .
+RUN pip install --no-cache-dir -r requirements_minimal.txt
+
+# Copy minimal app
+COPY app_simple.py .
+
+# Expose port
+EXPOSE 8000
+
+# Start app
+CMD ["python", "app_simple.py"]
