@@ -14,15 +14,21 @@ from slowapi.errors import RateLimitExceeded
 
 from app.config import settings
 from app.database import init_db, close_db, check_db_connection
-from app.api import auth_router, onboarding_router, agents_router, health_router
-from app.api.specialized_agents import router as specialized_agents_router
-from app.api.orchestration import router as orchestration_router
-from app.api.marketplace import router as marketplace_router
-from app.api.feedback import router as feedback_router
-from app.api.security_dashboard import router as security_router
-from app.api.chat import router as chat_router
-from app.api.websocket import router as websocket_router, startup_websocket_tasks, shutdown_websocket_tasks
-from app.api.performance import router as performance_router
+from app.api import (
+    auth_router,
+    onboarding_router,
+    agents_router,
+    health_router,
+    specialized_agents_router,
+    orchestration_router,
+    marketplace_router,
+    feedback_router,
+    security_router,
+    chat_router,
+    websocket_router,
+    performance_router
+)
+from app.api.websocket import startup_websocket_tasks, shutdown_websocket_tasks
 from app.utils.rate_limiting import limiter, rate_limit_handler
 from app.utils.security import request_validator, csp
 from app.middleware.security import SecurityMiddleware
