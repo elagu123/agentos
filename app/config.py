@@ -37,6 +37,13 @@ class Settings(BaseSettings):
         default="postgresql+asyncpg://user:pass@localhost:5432/agentos",
         description="Database URL - Railway will set this automatically"
     )
+
+    @validator('database_url', pre=True)
+    def fix_database_url(cls, v):
+        """Convert Railway's postgresql:// to postgresql+asyncpg://"""
+        if isinstance(v, str) and v.startswith('postgresql://'):
+            return v.replace('postgresql://', 'postgresql+asyncpg://', 1)
+        return v
     database_echo: bool = False
 
     # Redis Settings

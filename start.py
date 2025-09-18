@@ -29,6 +29,16 @@ def main():
         else:
             print(f"✅ Found environment variable: {var}")
 
+    # Show database URL type (without credentials) for debugging
+    db_url = os.getenv("DATABASE_URL", "")
+    if db_url:
+        if db_url.startswith("postgresql://"):
+            print(f"🔄 Converting database URL from postgresql:// to postgresql+asyncpg://")
+        elif db_url.startswith("postgresql+asyncpg://"):
+            print(f"✅ Database URL already using asyncpg driver")
+        else:
+            print(f"⚠️  Unknown database URL format")
+
     if missing_vars:
         print(f"⚠️  Missing variables: {missing_vars}")
         print("🔧 App will start with defaults where possible")
