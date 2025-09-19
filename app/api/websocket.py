@@ -15,8 +15,8 @@ import json
 import structlog
 
 from app.core.websocket_manager import connection_pool
-from app.core.auth import verify_token, get_current_user
-from app.core.database import get_db
+from app.utils.clerk_auth import verify_token, get_current_user
+from app.database import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = structlog.get_logger(__name__)
