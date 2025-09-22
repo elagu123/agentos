@@ -12,7 +12,10 @@
       "Bash(git push:*)",
       "Bash(railway status:*)",
       "Bash(python:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(cat:*)",
+      "Bash(curl:*)",
+      "Bash(railway logs:*)"
     ],
     "deny": [],
     "ask": []
